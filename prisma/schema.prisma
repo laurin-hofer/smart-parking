@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id              String           @id @default(cuid())
+  licensePlate    String           @unique
+  ownerName       String
+  note            String?
+  isAllowed       Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  assignedSpots   ParkingSpot[]    @relation("AssignedVehicle")
+  reservations    Reservation[]
+  parkingSessions ParkingSession[]
+
+  @@index([licensePlate])
+  @@map("vehicles")
+}
+
+model ParkingSpot {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  status          String           @default("FREE")
+  assignedVehicleId String?
+  assignedVehicle Vehicle?         @relation("AssignedVehicle", fields: [assignedVehicleId], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  reservations    Reservation[]
+  parkingSessions ParkingSession[]
+
+  @@index([status])
+  @@map("parking_spots")
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  vehicleId     String
+  parkingSpotId String
+  status        String           @default("ACTIVE")
+  createdAt     DateTime          @default(now())
+  validUntil    DateTime
+  vehicle       Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  parkingSpot   ParkingSpot       @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([vehicleId])
+  @@map("reservations")
+}
+
+model ParkingSession {
+  id            String        @id @default(cuid())
+  vehicleId     String
+  parkingSpotId String?
+  entryTime     DateTime      @default(now())
+  exitTime      DateTime?
+  status        String        @default("ACTIVE")
+  isPaid        Boolean       @default(false)
+  totalCost     Float         @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  parkingSpot   ParkingSpot?  @relation(fields: [parkingSpotId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([entryTime])
+  @@map("parking_sessions")
+}
+
+model EventLog {
+  id              String   @id @default(cuid())
+  type            String
+  message         String
+  licensePlate    String?
+  parkingSpotName String?
+  createdAt       DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@map("event_logs")
+}
