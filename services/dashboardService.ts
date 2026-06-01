@@ -1,77 +1,105 @@
-import { prisma } from "@/lib/prisma";
-import { currentFee } from "@/lib/utils";
+import { query } from "@/lib/db";
+import { calculatePriceCents } from "@/lib/pricing";
+
+function parsePayload(payload: string) {
+  try {
+    return JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return { raw: payload };
+  }
+}
 
 function startOfToday() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+function iso(value: Date | string | null | undefined) {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+async function getSystemState() {
+  const result = await query(
+    `INSERT INTO "system_state" ("id")
+     VALUES ('singleton')
+     ON CONFLICT ("id") DO UPDATE SET "id" = EXCLUDED."id"
+     RETURNING *`
+  );
+  return result.rows[0];
+}
+
 export async function getDashboardData() {
-  const [spots, vehicles, sessions, reservations, logs, finishedToday] = await Promise.all([
-    prisma.parkingSpot.findMany({ include: { assignedVehicle: true }, orderBy: { name: "asc" } }),
-    prisma.vehicle.findMany({ orderBy: { updatedAt: "desc" } }),
-    prisma.parkingSession.findMany({
-      where: { status: { in: ["ACTIVE", "PENDING"] } },
-      include: { vehicle: true, parkingSpot: true },
-      orderBy: { entryTime: "desc" }
-    }),
-    prisma.reservation.findMany({
-      where: { status: "ACTIVE" },
-      include: { vehicle: true, parkingSpot: true },
-      orderBy: { createdAt: "desc" }
-    }),
-    prisma.eventLog.findMany({ orderBy: { createdAt: "desc" }, take: 80 }),
-    prisma.parkingSession.findMany({
-      where: { updatedAt: { gte: startOfToday() } },
-      include: { parkingSpot: true }
-    })
+  const [systemState, spots, vehicles, sessions, exitedToday, hardwareEvents, logs] = await Promise.all([
+    getSystemState(),
+    query('SELECT * FROM "parking_spots" ORDER BY "code" ASC').then((r) => r.rows),
+    query('SELECT * FROM "vehicles" ORDER BY "createdAt" DESC').then((r) => r.rows),
+    query(
+      `SELECT
+         s.*,
+         row_to_json(v.*) AS vehicle,
+         CASE WHEN p."id" IS NULL THEN NULL ELSE row_to_json(p.*) END AS spot
+       FROM "parking_sessions" s
+       JOIN "vehicles" v ON v."id" = s."vehicleId"
+       LEFT JOIN "parking_spots" p ON p."id" = s."spotId"
+       WHERE s."status" = ANY($1)
+       ORDER BY s."enteredAt" DESC`,
+      [["ACTIVE", "PAID"]]
+    ).then((r) => r.rows),
+    query('SELECT * FROM "parking_sessions" WHERE "status" = $1 AND "exitedAt" >= $2', ["EXITED", startOfToday()]).then(
+      (r) => r.rows
+    ),
+    query('SELECT * FROM "hardware_events" ORDER BY "createdAt" DESC LIMIT 50').then((r) => r.rows),
+    query('SELECT * FROM "event_logs" ORDER BY "createdAt" DESC LIMIT 100').then((r) => r.rows)
   ]);
 
-  const revenueToday = finishedToday.reduce((sum, session) => sum + session.totalCost, 0);
-  const hours = Array.from({ length: 12 }, (_, index) => {
-    const hour = `${(new Date().getHours() - 11 + index + 24) % 24}:00`;
-    return {
-      hour,
-      revenue: Number((Math.random() * 18 + (index > 7 ? 12 : 4)).toFixed(2)),
-      rate: Math.round((spots.filter((s) => s.status === "OCCUPIED").length / Math.max(spots.length, 1)) * 100),
-      entries: Math.floor(Math.random() * 6)
-    };
-  });
-
-  const usage = new Map<string, number>();
-  for (const session of finishedToday) {
-    if (session.parkingSpot) {
-      usage.set(session.parkingSpot.name, (usage.get(session.parkingSpot.name) ?? 0) + 1);
-    }
-  }
+  const revenueTodayCents = exitedToday.reduce((sum, s) => sum + s.priceCents, 0);
 
   return {
+    systemState: {
+      entryLocked: systemState.entryLocked,
+      entryLockedAt: systemState.entryLockedAt?.toISOString() ?? null,
+      latestPendingPlate: systemState.latestPendingPlate
+    },
     stats: {
       total: spots.length,
       free: spots.filter((s) => s.status === "FREE").length,
       occupied: spots.filter((s) => s.status === "OCCUPIED").length,
       reserved: spots.filter((s) => s.status === "RESERVED").length,
-      maintenance: spots.filter((s) => s.status === "MAINTENANCE").length,
-      activeReservations: reservations.length,
-      activeSessions: sessions.length,
-      registeredPlates: vehicles.length,
-      revenueToday
-    },
-    barrier: {
-      entry: "CLOSED" as const,
-      exit: "CLOSED" as const,
-      lastDecision: logs[0]?.message ?? "System waiting for hardware event"
+      sensorUnknown: spots.filter((s) => s.status === "SENSOR_UNKNOWN").length,
+      activeSessions: sessions.filter((s) => s.status === "ACTIVE").length,
+      paidSessions: sessions.filter((s) => s.status === "PAID").length,
+      revenueTodayCents,
+      registeredVehicles: vehicles.length
     },
     spots,
-    vehicles,
-    sessions: sessions.map((session) => ({ ...session, currentFee: currentFee(session.entryTime, session.totalCost) })),
-    reservations,
-    logs,
-    analytics: {
-      revenueByHour: hours.map(({ hour, revenue }) => ({ hour, revenue })),
-      occupancyRate: hours.map(({ hour, rate }) => ({ hour, rate })),
-      entriesToday: hours.map(({ hour, entries }) => ({ hour, entries })),
-      mostUsedSpots: spots.map((spot) => ({ name: spot.name, uses: usage.get(spot.name) ?? Math.floor(Math.random() * 8) }))
-    }
+    sessions: sessions.map((s) => ({
+      ...s,
+      enteredAt: iso(s.enteredAt),
+      paidAt: iso(s.paidAt),
+      exitedAt: iso(s.exitedAt),
+      createdAt: iso(s.createdAt),
+      updatedAt: iso(s.updatedAt),
+      currentPriceCents: s.status === "PAID" ? s.priceCents : calculatePriceCents(s.enteredAt),
+      vehicle: {
+        ...s.vehicle,
+        createdAt: iso(s.vehicle.createdAt)
+      },
+      spot: s.spot
+        ? {
+            ...s.spot,
+            lastSensorAt: iso(s.spot.lastSensorAt),
+            createdAt: iso(s.spot.createdAt),
+            updatedAt: iso(s.spot.updatedAt)
+          }
+        : null
+    })),
+    vehicles: vehicles.map((v) => ({ ...v, createdAt: iso(v.createdAt) })),
+    hardwareEvents: hardwareEvents.map((e) => ({
+      ...e,
+      payload: parsePayload(e.payload),
+      createdAt: iso(e.createdAt)
+    })),
+    logs: logs.map((l) => ({ ...l, createdAt: iso(l.createdAt) }))
   };
 }

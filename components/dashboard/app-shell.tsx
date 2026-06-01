@@ -24,7 +24,7 @@ export function AppShell({
     <main className="min-h-screen soft-grid px-4 py-5 md:px-8">
       <div className="mx-auto max-w-7xl">
         <nav className="glass mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl px-4 py-3">
-          <Link href="/user" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500 text-white shadow-glow">
               <CarFront className="h-5 w-5" />
             </span>
@@ -36,14 +36,20 @@ export function AppShell({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/user"
+              href="/"
               className={cn(
                 "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10",
                 active === "user" && "bg-white/10 text-white"
               )}
             >
               <LayoutDashboard className="h-4 w-4" />
-              User
+              Parking
+            </Link>
+            <Link
+              href="/map"
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+            >
+              Map
             </Link>
             <Link
               href="/admin"

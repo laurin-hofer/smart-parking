@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { updateSpotByName, type SpotStatus } from "@/services/sensorService";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { parkingSpotName: string; status: SpotStatus };
-  return NextResponse.json(await updateSpotByName(body.parkingSpotName, body.status));
+export async function POST() {
+  return NextResponse.json(
+    { error: "This endpoint has been replaced. Use POST /api/hardware/sensor" },
+    { status: 410 }
+  );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { deleteVehicle, updateVehicle } from "@/services/licensePlateService";
 
 const vehicleUpdateSchema = z.object({
@@ -18,7 +18,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return NextResponse.json(await prisma.vehicle.findUnique({ where: { id } }));
+  const vehicle = await query('SELECT * FROM "vehicles" WHERE "id" = $1', [id]).then((r) => r.rows[0] ?? null);
+  return NextResponse.json(vehicle);
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

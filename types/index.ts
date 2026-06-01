@@ -1,43 +1,77 @@
+export type SpotStatus = "FREE" | "OCCUPIED" | "RESERVED" | "SENSOR_UNKNOWN";
+export type SessionStatus = "ACTIVE" | "PAID" | "EXITED";
+
+export type ParkingSpot = {
+  id: string;
+  code: string;
+  status: SpotStatus;
+  sensorId: string | null;
+  lastSensorAt: string | null;
+};
+
+export type Vehicle = {
+  id: string;
+  licensePlate: string;
+  ownerName: string;
+  note: string | null;
+  isAllowed: boolean;
+  createdAt: string;
+};
+
+export type ParkingSession = {
+  id: string;
+  vehicleId: string;
+  spotId: string | null;
+  status: SessionStatus;
+  enteredAt: string;
+  paidAt: string | null;
+  exitedAt: string | null;
+  exitAllowed: boolean;
+  paymentMethod: string | null;
+  priceCents: number;
+  vehicle: Vehicle;
+  spot: ParkingSpot | null;
+};
+
+export type HardwareEvent = {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  source: string | null;
+  createdAt: string;
+};
+
+export type SystemState = {
+  entryLocked: boolean;
+  entryLockedAt: string | null;
+  latestPendingPlate: string | null;
+};
+
+export type EventLog = {
+  id: string;
+  type: string;
+  message: string;
+  licensePlate: string | null;
+  spotCode: string | null;
+  createdAt: string;
+};
+
 export type DashboardData = {
+  systemState: SystemState;
   stats: {
     total: number;
     free: number;
     occupied: number;
     reserved: number;
-    maintenance: number;
-    activeReservations: number;
+    sensorUnknown: number;
     activeSessions: number;
-    registeredPlates: number;
-    revenueToday: number;
+    paidSessions: number;
+    revenueTodayCents: number;
+    registeredVehicles: number;
   };
-  barrier: {
-    entry: "OPEN" | "CLOSED";
-    exit: "OPEN" | "CLOSED";
-    lastDecision: string;
-  };
-  spots: Array<{
-    id: string;
-    name: string;
-    status: "FREE" | "RESERVED" | "OCCUPIED" | "MAINTENANCE";
-    assignedVehicleId: string | null;
-    assignedVehicle?: { licensePlate: string; ownerName: string } | null;
-  }>;
-  vehicles: Array<{
-    id: string;
-    licensePlate: string;
-    ownerName: string;
-    note: string | null;
-    isAllowed: boolean;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-  sessions: Array<any>;
-  reservations: Array<any>;
-  logs: Array<any>;
-  analytics: {
-    revenueByHour: Array<{ hour: string; revenue: number }>;
-    occupancyRate: Array<{ hour: string; rate: number }>;
-    entriesToday: Array<{ hour: string; entries: number }>;
-    mostUsedSpots: Array<{ name: string; uses: number }>;
-  };
+  spots: ParkingSpot[];
+  sessions: (ParkingSession & { currentPriceCents: number })[];
+  vehicles: Vehicle[];
+  hardwareEvents: HardwareEvent[];
+  logs: EventLog[];
 };

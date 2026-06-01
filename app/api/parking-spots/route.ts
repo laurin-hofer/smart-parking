@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import type { SpotStatus } from "@/services/sensorService";
+import { createId, query } from "@/lib/db";
+import type { SpotStatus } from "@/types";
 
 export async function GET() {
   return NextResponse.json(
-    await prisma.parkingSpot.findMany({ include: { assignedVehicle: true }, orderBy: { name: "asc" } })
+    await query('SELECT * FROM "parking_spots" ORDER BY "code" ASC').then((r) => r.rows)
   );
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { name: string; status?: SpotStatus };
-  const spot = await prisma.parkingSpot.create({ data: { name: body.name, status: body.status ?? "FREE" } });
+  const body = (await request.json()) as { code: string; status?: SpotStatus; sensorId?: string };
+  const spot = await query(
+    `INSERT INTO "parking_spots" ("id", "code", "status", "sensorId")
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [createId(), body.code, body.status ?? "FREE", body.sensorId ?? null]
+  ).then((r) => r.rows[0]);
   return NextResponse.json(spot, { status: 201 });
 }

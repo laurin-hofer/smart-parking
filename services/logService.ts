@@ -1,17 +1,18 @@
-import { prisma } from "@/lib/prisma";
+import { createId, query } from "@/lib/db";
 
-export async function logEvent(input: {
+type LogParams = {
   type: string;
   message: string;
   licensePlate?: string | null;
-  parkingSpotName?: string | null;
-}) {
-  return prisma.eventLog.create({
-    data: {
-      type: input.type,
-      message: input.message,
-      licensePlate: input.licensePlate,
-      parkingSpotName: input.parkingSpotName
-    }
-  });
+  spotCode?: string | null;
+};
+
+export async function logEvent(params: LogParams) {
+  const result = await query(
+    `INSERT INTO "event_logs" ("id", "type", "message", "licensePlate", "spotCode")
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [createId(), params.type, params.message, params.licensePlate ?? null, params.spotCode ?? null]
+  );
+  return result.rows[0];
 }

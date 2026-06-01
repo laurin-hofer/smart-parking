@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { setSpotStatus, type SpotStatus } from "@/services/sensorService";
+import { query } from "@/lib/db";
+import { logEvent } from "@/services/logService";
+import type { SpotStatus } from "@/types";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return NextResponse.json(await prisma.parkingSpot.findUnique({ where: { id }, include: { assignedVehicle: true } }));
+  const spot = await query('SELECT * FROM "parking_spots" WHERE "id" = $1', [id]).then((r) => r.rows[0] ?? null);
+  return NextResponse.json(spot);
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = (await request.json()) as { status: SpotStatus; assignedVehicleId?: string | null };
-  return NextResponse.json(await setSpotStatus(id, body.status, body.assignedVehicleId));
+  const body = (await request.json()) as { status: SpotStatus };
+
+  const spot = await query(
+    'UPDATE "parking_spots" SET "status" = $2, "updatedAt" = NOW() WHERE "id" = $1 RETURNING *',
+    [id, body.status]
+  ).then((r) => r.rows[0]);
+
+  await logEvent({
+    type: "admin_manual_action",
+    message: `${spot.code} manually set to ${body.status}.`,
+    spotCode: spot.code
+  });
+
+  return NextResponse.json(spot);
 }

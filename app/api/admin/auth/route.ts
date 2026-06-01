@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-export const SESSION_COOKIE = "admin_session";
+const SESSION_COOKIE = "admin_session";
 
 function sessionToken() {
   return btoa(`admin:${process.env.ADMIN_PASSWORD ?? ""}`);

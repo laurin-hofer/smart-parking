@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { logEvent } from "@/services/logService";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
-  const body = (await request.json()) as { type: string; message: string; licensePlate?: string; parkingSpotName?: string };
-  return NextResponse.json(await logEvent(body));
+export async function POST() {
+  return NextResponse.json(
+    { error: "This endpoint has been removed. Use POST /api/hardware/entry/start, /entry/complete, or /exit/check" },
+    { status: 410 }
+  );
 }
