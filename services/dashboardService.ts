@@ -31,7 +31,7 @@ async function getSystemState() {
 }
 
 export async function getDashboardData() {
-  const [systemState, spots, vehicles, sessions, exitedToday, hardwareEvents, logs] = await Promise.all([
+  const [systemState, spots, vehicles, sessions, exitedToday, unpaidExits, hardwareEvents, logs] = await Promise.all([
     getSystemState(),
     listParkingSpotsWithOccupancy(),
     query('SELECT * FROM "vehicles" ORDER BY "createdAt" DESC').then((r) => r.rows),
@@ -50,6 +50,20 @@ export async function getDashboardData() {
     query('SELECT * FROM "parking_sessions" WHERE "status" = $1 AND "exitedAt" >= $2', ["EXITED", startOfToday()]).then(
       (r) => r.rows
     ),
+    query(
+      `SELECT
+         s.*,
+         row_to_json(v.*) AS vehicle,
+         CASE WHEN p."id" IS NULL THEN NULL ELSE row_to_json(p.*) END AS spot
+       FROM "parking_sessions" s
+       JOIN "vehicles" v ON v."id" = s."vehicleId"
+       LEFT JOIN "parking_spots" p ON p."id" = s."spotId"
+       WHERE s."status" = 'EXITED'
+         AND s."exitAllowed" = FALSE
+         AND s."paidAt" IS NULL
+       ORDER BY s."exitedAt" DESC
+       LIMIT 20`
+    ).then((r) => r.rows),
     query('SELECT * FROM "hardware_events" ORDER BY "createdAt" DESC LIMIT 50').then((r) => r.rows),
     query('SELECT * FROM "event_logs" ORDER BY "createdAt" DESC LIMIT 100').then((r) => r.rows)
   ]);
@@ -101,6 +115,26 @@ export async function getDashboardData() {
       payload: parsePayload(e.payload),
       createdAt: iso(e.createdAt)
     })),
-    logs: logs.map((l) => ({ ...l, createdAt: iso(l.createdAt) }))
+    logs: logs.map((l) => ({ ...l, createdAt: iso(l.createdAt) })),
+    unpaidExits: unpaidExits.map((s) => ({
+      ...s,
+      enteredAt: iso(s.enteredAt),
+      paidAt: iso(s.paidAt),
+      exitedAt: iso(s.exitedAt),
+      createdAt: iso(s.createdAt),
+      updatedAt: iso(s.updatedAt),
+      vehicle: {
+        ...s.vehicle,
+        createdAt: iso(s.vehicle.createdAt)
+      },
+      spot: s.spot
+        ? {
+            ...s.spot,
+            lastSensorAt: iso(s.spot.lastSensorAt),
+            createdAt: iso(s.spot.createdAt),
+            updatedAt: iso(s.spot.updatedAt)
+          }
+        : null
+    }))
   };
 }

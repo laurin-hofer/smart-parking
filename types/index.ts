@@ -59,6 +59,18 @@ export type EventLog = {
   createdAt: string;
 };
 
+export type UnpaidExit = {
+  id: string;
+  vehicleId: string;
+  spotId: string | null;
+  status: "EXITED";
+  enteredAt: string;
+  exitedAt: string;
+  priceCents: number;
+  vehicle: Vehicle;
+  spot: ParkingSpot | null;
+};
+
 export type DashboardData = {
   systemState: SystemState;
   stats: {
@@ -77,4 +89,5 @@ export type DashboardData = {
   vehicles: Vehicle[];
   hardwareEvents: HardwareEvent[];
   logs: EventLog[];
+  unpaidExits: UnpaidExit[];
 };

@@ -72,9 +72,14 @@ export default function AdminPage() {
   const logs = useMemo(() => {
     if (!data) return [];
     const needle = logQuery.toLowerCase();
+    const unpaidExitByPlate = new Map(data.unpaidExits.map((session) => [session.vehicle.licensePlate, session.id]));
     return data.logs.filter((l) =>
       [l.type, l.message, l.licensePlate ?? "", l.spotCode ?? ""].some((f) => f.toLowerCase().includes(needle))
-    );
+    ).map((log) => ({
+      ...log,
+      unpaidExitSessionId:
+        log.type === "car_exited" && log.licensePlate ? unpaidExitByPlate.get(log.licensePlate) ?? null : null
+    }));
   }, [data, logQuery]);
 
   async function saveVehicle(e: FormEvent) {
@@ -116,6 +121,12 @@ export default function AdminPage() {
     await load();
   }
 
+  async function applyPenalty(sessionId: string) {
+    await api(`/api/parking-sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify({ penalty: true }) });
+    toast.success("Penalty charged: €120.00");
+    await load();
+  }
+
   async function demoEntry() {
     await api("/api/admin/demo-entry", { method: "POST", body: JSON.stringify({}) });
     toast.success("Demo entry simulated");
@@ -143,6 +154,7 @@ export default function AdminPage() {
   }
 
   const { stats, systemState } = data;
+  const hasUnpaidExits = data.unpaidExits.length > 0;
 
   return (
     <AppShell active="admin">
@@ -166,6 +178,25 @@ export default function AdminPage() {
           </Button>
         </div>
       </div>
+
+      {hasUnpaidExits && (
+        <div className="mb-4 rounded-2xl border border-red-400/50 bg-red-500/10 px-5 py-4 shadow-[0_0_36px_rgba(248,113,113,0.36)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-300" />
+              <div>
+                <p className="font-semibold text-red-100">Unpaid exit detected</p>
+                <p className="text-sm text-red-200/80">
+                  {data.unpaidExits.map((session) => session.vehicle.licensePlate).join(", ")} left without payment.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-lg bg-red-400/20 px-3 py-1 text-sm font-semibold text-red-100">
+              {data.unpaidExits.length} open
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* System State Banner */}
       <div className={`mb-4 flex items-center gap-3 rounded-2xl border px-5 py-3 ${
@@ -201,7 +232,7 @@ export default function AdminPage() {
 
       {/* Sessions + Hardware Events */}
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="glass">
+        <Card className={`glass ${hasUnpaidExits ? "border-red-400/40 shadow-[0_0_30px_rgba(248,113,113,0.24)]" : ""}`}>
           <CardHeader><CardTitle>Active sessions</CardTitle></CardHeader>
           <CardContent className="overflow-auto">
             <Table>
@@ -375,7 +406,7 @@ export default function AdminPage() {
               <Search className="h-4 w-4 text-slate-500" />
               <Input placeholder="Filter events…" value={logQuery} onChange={(e) => setLogQuery(e.target.value)} />
             </div>
-            <EventFeed logs={logs.slice(0, 20)} />
+            <EventFeed logs={logs.slice(0, 20)} onPenalty={applyPenalty} />
           </CardContent>
         </Card>
       </div>
