@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-const SESSION_COOKIE = "admin_session";
+import { adminSessionToken, getAdminSessionCookieName } from "@/lib/admin-auth";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Admin pages require session cookie
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    const session = request.cookies.get(SESSION_COOKIE);
-    const expected = btoa(`admin:${process.env.ADMIN_PASSWORD ?? ""}`);
+    const session = request.cookies.get(getAdminSessionCookieName());
+    const expected = adminSessionToken();
     if (!session || session.value !== expected) {
       const loginUrl = new URL("/admin/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);

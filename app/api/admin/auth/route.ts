@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SESSION_COOKIE = "admin_session";
-
-function sessionToken() {
-  return btoa(`admin:${process.env.ADMIN_PASSWORD ?? ""}`);
-}
+import { adminSessionToken, getAdminSessionCookieName, isValidAdminPassword } from "@/lib/admin-auth";
 
 export async function POST(request: NextRequest) {
   const { password } = (await request.json()) as { password: string };
 
-  if (!password || password !== process.env.ADMIN_PASSWORD) {
+  if (!password || !isValidAdminPassword(password)) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, sessionToken(), {
+  response.cookies.set(getAdminSessionCookieName(), adminSessionToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -27,7 +22,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, "", {
+  response.cookies.set(getAdminSessionCookieName(), "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { CarFront, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   async function handleLogin(event: FormEvent) {
@@ -28,8 +27,7 @@ function LoginForm() {
         return;
       }
       const redirect = searchParams.get("redirect") ?? "/admin";
-      router.push(redirect);
-      router.refresh();
+      window.location.href = redirect;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
