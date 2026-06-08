@@ -14,5 +14,5 @@ export function isValidAdminPassword(password: string) {
 }
 
 export function adminSessionToken() {
-  return btoa(`admin:${adminPassword()}`);
+  return encodeURIComponent(`admin:${adminPassword()}`);
 }
