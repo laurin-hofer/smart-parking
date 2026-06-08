@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "admin_session";
@@ -14,19 +13,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, sessionToken(), {
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set(SESSION_COOKIE, sessionToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7 // 7 days
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+    path: "/"
   });
 
-  return NextResponse.json({ ok: true });
+  return response;
 }
 
 export async function DELETE() {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/"
+  });
+  return response;
 }

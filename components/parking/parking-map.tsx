@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Car, CircleHelp, Clock, Wrench } from "lucide-react";
+import { Car, CircleHelp, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpotStatus, ParkingSpot } from "@/types";
 
@@ -54,6 +54,11 @@ export function ParkingMap({
             <p className="mt-5 text-xs font-semibold uppercase tracking-widest opacity-70">
               {spot.status === "SENSOR_UNKNOWN" ? "Unknown" : spot.status.toLowerCase()}
             </p>
+            {spot.activeLicensePlate && (
+              <p className="mt-2 truncate font-mono text-sm font-bold text-white">
+                {spot.activeLicensePlate}
+              </p>
+            )}
           </motion.button>
         );
       })}

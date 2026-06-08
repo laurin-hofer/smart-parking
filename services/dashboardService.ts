@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { calculatePriceCents } from "@/lib/pricing";
+import { listParkingSpotsWithOccupancy } from "@/services/parkingSpotService";
 
 function parsePayload(payload: string) {
   try {
@@ -32,7 +33,7 @@ async function getSystemState() {
 export async function getDashboardData() {
   const [systemState, spots, vehicles, sessions, exitedToday, hardwareEvents, logs] = await Promise.all([
     getSystemState(),
-    query('SELECT * FROM "parking_spots" ORDER BY "code" ASC').then((r) => r.rows),
+    listParkingSpotsWithOccupancy(),
     query('SELECT * FROM "vehicles" ORDER BY "createdAt" DESC').then((r) => r.rows),
     query(
       `SELECT

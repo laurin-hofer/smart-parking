@@ -168,6 +168,16 @@ export async function startEntry(plate?: string, source?: string) {
   }
 
   const normalized = plate ? normalizePlate(plate) : null;
+  if (normalized) {
+    const pendingResult = await plateDetected(normalized, source);
+    if (!pendingResult.success) {
+      return {
+        gateOpen: false,
+        reason: pendingResult.reason,
+        entryLocked: false
+      };
+    }
+  }
 
   await query(
     `UPDATE "system_state"

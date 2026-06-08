@@ -7,6 +7,9 @@ export type ParkingSpot = {
   status: SpotStatus;
   sensorId: string | null;
   lastSensorAt: string | null;
+  activeSessionId?: string | null;
+  activeSessionStatus?: SessionStatus | null;
+  activeLicensePlate?: string | null;
 };
 
 export type Vehicle = {

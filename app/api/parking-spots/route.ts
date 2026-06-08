@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createId, query } from "@/lib/db";
+import { listParkingSpotsWithOccupancy } from "@/services/parkingSpotService";
 import type { SpotStatus } from "@/types";
 
 export async function GET() {
-  return NextResponse.json(
-    await query('SELECT * FROM "parking_spots" ORDER BY "code" ASC').then((r) => r.rows)
-  );
+  return NextResponse.json(await listParkingSpotsWithOccupancy());
 }
 
 export async function POST(request: NextRequest) {

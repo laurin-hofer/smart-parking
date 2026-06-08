@@ -193,6 +193,11 @@ export default function UserPage() {
                   <p className="text-[10px] opacity-70 mt-0.5">
                     {spot.status === "FREE" ? "Free" : spot.status === "OCCUPIED" ? "Full" : spot.status === "RESERVED" ? "Res." : "?"}
                   </p>
+                  {spot.activeLicensePlate && (
+                    <p className="mt-1 truncate font-mono text-[10px] font-bold text-white">
+                      {spot.activeLicensePlate}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

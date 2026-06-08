@@ -287,6 +287,9 @@ export default function AdminPage() {
                 <div key={spot.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.03] p-3">
                   <div>
                     <p className="font-bold text-white">{spot.code}</p>
+                    {spot.activeLicensePlate && (
+                      <p className="mt-0.5 font-mono text-xs font-semibold text-slate-300">{spot.activeLicensePlate}</p>
+                    )}
                     <StatusBadge status={spot.status} className="mt-1" />
                   </div>
                   <Select value={spot.status} onChange={(e) => setSpotStatus(spot.id, e.target.value)}>
